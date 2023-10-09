@@ -2,8 +2,8 @@ import subprocess
 import os
 
 def main():
-    #subprocess.run(['python3', 'csvDownload.py'])
-    #subprocess.run(['python3', 'pydantic_LPF.py'])
+    subprocess.run(['python3', 'csvDownload.py'])
+    subprocess.run(['python3', 'pydantic_LPF.py'])
 
     data_output_size = os.path.getsize('data_output.csv') / (1024 * 1024)  # size in MB
     linked_places_output_size = os.path.getsize('linked_places_output.json') / (1024 * 1024)  # size in MB
