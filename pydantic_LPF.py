@@ -19,12 +19,11 @@ def transform_geom(geometry):
 
 # Data Ingestion
 def ingest_data(data):
-    geojson_t_data = []
     linked_places_data = []
 
     for index, row in data.iterrows():
         row = row.fillna("")  # replace NaN values with empty strings
-        
+
         # Constructing the names array
         names = []
         if row['sname_o']:
@@ -39,21 +38,12 @@ def ingest_data(data):
             names.append({"toponym": row['lname_h']})
         if row['variants_h']:
             names.extend([{"toponym": name.strip()} for name in row['variants_h'].split(",")])
-        
+
         properties = {
             "title": row['short_name'],
             **row.drop(['geometry', 'geom', 'year', 'short_name', 'sname_o', 'lname_o', 'variants_o', 'sname_h', 'lname_h', 'variants_h']).to_dict()
         }
-        
-        geojson_t_item = {
-            "@id": str(row['id']),
-            "type": "Feature",
-            "geometry": row['geometry'].__geo_interface__,
-            "properties": properties,
-            "names": names,
-            "when": {"timespans": [{"start": {"in": str(row['year'])}}]}
-        }
-        
+
         linked_places_item = {
             "@id": str(row['id']),
             "type": "Feature",
@@ -62,11 +52,10 @@ def ingest_data(data):
             "names": names,
             "when": {"timespans": [{"start": {"in": str(row['year'])}}]}
         }
-        
-        geojson_t_data.append(geojson_t_item)
+
         linked_places_data.append(linked_places_item)
 
-    return geojson_t_data, linked_places_data
+    return linked_places_data
 
 def main():
     # Set up warnings handling
@@ -77,13 +66,7 @@ def main():
         data['geometry'] = data['geom'].apply(parse_geom).apply(transform_geom)  # modified this line
 
         # Data Ingestion
-        geojson_t_features, linked_places_features = ingest_data(data)
-
-        geojson_t_data = {
-            "@context": "http://linkedpasts.org/assets/linkedplaces-context-v1.jsonld",
-            "type": "FeatureCollection",
-            "features": geojson_t_features
-        }
+        linked_places_features = ingest_data(data)
 
         linked_places_data = {
             "@context": "http://linkedpasts.org/assets/linkedplaces-context-v1.jsonld",
@@ -91,10 +74,7 @@ def main():
             "features": linked_places_features
         }
 
-        # Output to JSON files
-        with open('geojson_t_output.json', 'w') as f:
-            json.dump(geojson_t_data, f, indent=2)
-
+        # Output to JSON file
         with open('linked_places_output.json', 'w') as f:
             json.dump(linked_places_data, f, indent=2)
 
