@@ -63,5 +63,4 @@ def check_json_syntax(filename):
             print(error)
 
 if __name__ == '__main__':
-    check_json_syntax('geojson_t_output.json')
-    #check_json_syntax('linked_places_output.json')
+    check_json_syntax('linked_places_output.json')
