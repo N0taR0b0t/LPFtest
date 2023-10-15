@@ -21,23 +21,17 @@ def transform_geom(geometry):
 def ingest_data(data):
     linked_places_data = []
 
+    default_citation = [{"url": "https://euratlas.com"}]  # Default citation
+
     for index, row in data.iterrows():
         row = row.fillna("")  # replace NaN values with empty strings
 
         # Constructing the names array
         names = []
-        if row['sname_o']:
-            names.append({"toponym": row['sname_o']})
-        if row['lname_o']:
-            names.append({"toponym": row['lname_o']})
-        if row['variants_o']:
-            names.extend([{"toponym": name.strip()} for name in row['variants_o'].split(",")])
-        if row['sname_h']:
-            names.append({"toponym": row['sname_h']})
-        if row['lname_h']:
-            names.append({"toponym": row['lname_h']})
-        if row['variants_h']:
-            names.extend([{"toponym": name.strip()} for name in row['variants_h'].split(",")])
+        for toponym_field in ['sname_o', 'lname_o', 'variants_o', 'sname_h', 'lname_h', 'variants_h']:
+            if row[toponym_field]:
+                toponyms = [row[toponym_field]] if 'variants' not in toponym_field else row[toponym_field].split(',')
+                names.extend([{"toponym": name.strip(), "citations": default_citation} for name in toponyms])
 
         properties = {
             "title": row['short_name'],
