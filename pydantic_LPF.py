@@ -6,22 +6,32 @@ import warnings
 
 # Parsing Geometry Data
 def parse_geom(hex_str):
-    return wkb.loads(bytes.fromhex(hex_str), hex=True)
+    try:
+        return wkb.loads(bytes.fromhex(hex_str), hex=True)
+    except:
+        print(f"Error parsing geometry: {hex_str}")
+        return None
 
-# New function to perform the CRS transformation
+# New function to perform the CRS transformation with error handling
 def transform_geom(geometry):
-    project = pyproj.Transformer.from_proj(
-        pyproj.Proj('epsg:3587'),
-        pyproj.Proj('epsg:4326'),  # to standard lat/long
-        always_xy=True
-    ).transform
-    return ops.transform(project, geometry)
+    if geometry is None:
+        return None
+
+    try:
+        project = pyproj.Transformer.from_proj(
+            pyproj.Proj('epsg:3857'),  # Using the correct epsg code 3857
+            pyproj.Proj('epsg:4326'),  # to standard lat/long
+            always_xy=True
+        ).transform
+        return ops.transform(project, geometry)
+    except Exception as e:
+        print(f"Error transforming geometry: {e}")
+        return None
 
 # Data Ingestion
 def ingest_data(data):
     linked_places_data = []
-
-    default_citation = [{"url": "https://euratlas.com"}]  # Default citation
+    default_citation = [{"url": "https://euratlas.com"}]
 
     for index, row in data.iterrows():
         row = row.fillna("")  # replace NaN values with empty strings
@@ -53,13 +63,11 @@ def ingest_data(data):
 
 def main():
     # Set up warnings handling
-    warnings.simplefilter("always")  # Change to always to count all instances of warnings
+    warnings.simplefilter("always")
     with warnings.catch_warnings(record=True) as w:
-        # Data Reading
         data = pd.read_csv('data_output.csv')
-        data['geometry'] = data['geom'].apply(parse_geom).apply(transform_geom)  # modified this line
+        data['geometry'] = data['geom'].apply(parse_geom).apply(transform_geom)
 
-        # Data Ingestion
         linked_places_features = ingest_data(data)
 
         linked_places_data = {
