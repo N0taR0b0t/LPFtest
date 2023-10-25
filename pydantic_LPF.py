@@ -3,51 +3,48 @@ from shapely import wkb, ops
 import json
 import pyproj
 import warnings
+import string
 
 # Parsing Geometry Data
 def parse_geom(hex_str):
-    try:
-        return wkb.loads(bytes.fromhex(hex_str), hex=True)
-    except:
-        print(f"Error parsing geometry: {hex_str}")
-        return None
+    return wkb.loads(bytes.fromhex(hex_str), hex=True)
 
-# New function to perform the CRS transformation with error handling
+# New function to perform the CRS transformation
 def transform_geom(geometry):
-    if geometry is None:
-        return None
+    project = pyproj.Transformer.from_proj(
+        pyproj.Proj('epsg:3857'),
+        pyproj.Proj('epsg:4326'),  # to standard lat/long
+        always_xy=True
+    ).transform
+    return ops.transform(project, geometry)
 
-    try:
-        project = pyproj.Transformer.from_proj(
-            pyproj.Proj('epsg:3857'),  # Using the correct epsg code 3857
-            pyproj.Proj('epsg:4326'),  # to standard lat/long
-            always_xy=True
-        ).transform
-        return ops.transform(project, geometry)
-    except Exception as e:
-        print(f"Error transforming geometry: {e}")
-        return None
+def is_english(text):
+    # Check if the text consists only of English alphabet characters, digits, and punctuation
+    return all(char in string.printable for char in text)
 
 # Data Ingestion
 def ingest_data(data):
     linked_places_data = []
-    default_citation = [{"url": "https://euratlas.com"}]
 
     for index, row in data.iterrows():
         row = row.fillna("")  # replace NaN values with empty strings
-
+        
         # Constructing the names array
         names = []
-        for toponym_field in ['sname_o', 'lname_o', 'variants_o', 'sname_h', 'lname_h', 'variants_h']:
-            if row[toponym_field]:
-                toponyms = [row[toponym_field]] if 'variants' not in toponym_field else row[toponym_field].split(',')
-                names.extend([{"toponym": name.strip(), "citations": default_citation} for name in toponyms])
-
+        for name_key in ['short_name', 'sname_o', 'variants_o', 'sname_h', 'lname_h', 'variants_h']:
+            if row[name_key]:
+                for name in row[name_key].split(","):
+                    name = name.strip()
+                    name_entry = {"toponym": name, "citations": [{"label": "Euratlas Polities"}]}
+                    if is_english(name):
+                        name_entry["lang"] = "en"
+                    names.append(name_entry)
+        
         properties = {
-            "title": row['short_name'],
+            "title": row['lname_o'],
             **row.drop(['geometry', 'geom', 'year', 'short_name', 'sname_o', 'lname_o', 'variants_o', 'sname_h', 'lname_h', 'variants_h']).to_dict()
         }
-
+        
         linked_places_item = {
             "@id": str(row['id']),
             "type": "Feature",
@@ -56,18 +53,20 @@ def ingest_data(data):
             "names": names,
             "when": {"timespans": [{"start": {"in": str(row['year'])}}]}
         }
-
+        
         linked_places_data.append(linked_places_item)
 
     return linked_places_data
 
 def main():
     # Set up warnings handling
-    warnings.simplefilter("always")
+    warnings.simplefilter("always")  # Change to always to count all instances of warnings
     with warnings.catch_warnings(record=True) as w:
-        data = pd.read_csv('data_output.csv')
-        data['geometry'] = data['geom'].apply(parse_geom).apply(transform_geom)
+        # Data Reading
+        data = pd.read_csv('data_output.csv', encoding='utf-8')
+        data['geometry'] = data['geom'].apply(parse_geom).apply(transform_geom)  # modified this line
 
+        # Data Ingestion
         linked_places_features = ingest_data(data)
 
         linked_places_data = {
@@ -77,8 +76,8 @@ def main():
         }
 
         # Output to JSON file
-        with open('linked_places_output.json', 'w') as f:
-            json.dump(linked_places_data, f, indent=2)
+        with open('linked_places_output.json', 'w', encoding='utf-8') as f:
+            json.dump(linked_places_data, f, indent=2, ensure_ascii=False)
 
         # After processing, display the count of additional warnings if more than 10
         if len(w) > 10:
