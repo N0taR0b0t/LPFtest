@@ -1,4 +1,5 @@
+json
 pandas
-shapely
 pydantic
 pyproj
+shapely
