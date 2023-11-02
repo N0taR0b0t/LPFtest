@@ -18,10 +18,6 @@ def transform_geom(geometry):
     ).transform
     return ops.transform(project, geometry)
 
-def is_english(text):
-    # Check if the text consists only of English alphabet characters, digits, and punctuation
-    return all(char in string.printable for char in text)
-
 # Data Ingestion
 def ingest_data(data):
     linked_places_data = []
@@ -36,9 +32,8 @@ def ingest_data(data):
                 for name in row[name_key].split(","):
                     name = name.strip()
                     name_entry = {"toponym": name, "citations": [{"label": "Euratlas Polities"}]}
-                    if is_english(name):
-                        name_entry["lang"] = "en"
                     names.append(name_entry)
+
         
         properties = {
             "title": row['lname_o'],
