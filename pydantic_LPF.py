@@ -19,7 +19,6 @@ def delete_every_other_point(geometry):
         new_coords = [coord for i, coord in enumerate(geometry.coords) if i % 2 == 0]
         if len(new_coords) < 2:
             # A valid LineString requires at least two points.
-            # Handle this case appropriately.
             raise ValueError("LineString has too few points after deletion.")
         return LineString(new_coords)
 
@@ -28,39 +27,38 @@ def delete_every_other_point(geometry):
         exterior_coords = [coord for i, coord in enumerate(geometry.exterior.coords) if i % 2 == 0]
         if len(exterior_coords) < 3:
             # A valid Polygon requires at least three points in the exterior ring.
-            # Handle this case appropriately.
             raise ValueError("Polygon has too few points in the exterior ring after deletion.")
 
-        # Handle the interior rings (holes)
         new_interiors = []
         for interior in geometry.interiors:
             interior_coords = [coord for i, coord in enumerate(interior.coords) if i % 2 == 0]
             if len(interior_coords) >= 3:
                 new_interiors.append(interior_coords)
-            # If an interior ring has fewer than 3 points, it will be discarded.
+            
 
         return Polygon(exterior_coords, new_interiors)
 
     elif isinstance(geometry, MultiPolygon):
         new_polygons = []
         for polygon in geometry.geoms:
+            # Count total points in the current polygon
+            total_points = len(polygon.exterior.coords) + sum(len(interior.coords) for interior in polygon.interiors)
+            # If the polygon has less than 25 points, skip the deletion process
+            if total_points < 25:
+                new_polygons.append(polygon)
+                continue
+            
             new_exterior_coords = [coord for i, coord in enumerate(polygon.exterior.coords) if i % 2 == 0]
             if len(new_exterior_coords) < 3:
-                # Handle invalid exteriors appropriately; here they are skipped.
                 continue
-
             new_interiors = []
             for interior in polygon.interiors:
                 new_interior_coords = [coord for i, coord in enumerate(interior.coords) if i % 2 == 0]
                 if len(new_interior_coords) >= 3:
-                    new_interiors.append(new_interior_coords)
-                # Interior rings with fewer than 3 points will be discarded.
-
+                    new_interiors.append(LineString(new_interior_coords))
+                    
             new_polygons.append(Polygon(new_exterior_coords, new_interiors))
         return MultiPolygon(new_polygons)
-
-    else:
-        raise ValueError(f"Geometry type '{type(geometry)}' not supported")
 
 # Parsing Geometry Data
 def parse_geom(hex_str):
